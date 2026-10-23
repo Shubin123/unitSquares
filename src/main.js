@@ -25,6 +25,27 @@ const bundled = await fetch('data/improved.json').then((r) => (r.ok ? r.json() :
 let local = {};
 try { local = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch { local = {}; }
 
+const kaggle = await fetch('data/kaggle/index.json').then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+const kaggleSq = new Map();
+async function loadKaggle(k) {
+  if (!kaggle[k] || kaggleSq.has(k)) return;
+  let a;
+  for (let attempt = 0; !a; attempt++) {
+    try {
+      const r = await fetch(`data/kaggle/${k}.bin`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      a = new Float64Array(await r.arrayBuffer());
+    } catch (err) {
+      if (attempt >= 3) throw err;
+      await new Promise((res) => setTimeout(res, 300 * (attempt + 1)));
+    }
+  }
+  const sq = [];
+  for (let i = 0; i < k; i++) sq.push({ x: a[3 * i], y: a[3 * i + 1], t: a[3 * i + 2] });
+  kaggleSq.set(k, sq);
+  cache.delete(k);
+}
+
 const unpack = (e, label) => ({ s: e.s, squares: e.q.map(([x, y, t]) => ({ x, y, t })), kind: 'optimized', label });
 const cache = new Map();
 function solution(n) {
@@ -32,6 +53,10 @@ function solution(n) {
   const c = construct(n);
   let best = { ...c, squares: finalize(c.squares) ?? c.squares };
   best.s = validate(best.squares).s ?? c.s;
+  if (kaggleSq.has(n) && kaggle[n].s < best.s - 1e-9) {
+    const src = kaggle[n].src;
+    best = { s: kaggle[n].s, squares: kaggleSq.get(n), kind: 'kaggle', src, label: `Kaggle: ${src.split('/')[1]}` };
+  }
   for (const [src, label] of [[bundled, 'GPU search (bundled)'], [local, 'GPU search (this browser)']]) {
     const e = src[n];
     if (e && e.s < best.s - 1e-9) {
@@ -44,7 +69,7 @@ function solution(n) {
   return best;
 }
 function quickS(n) {
-  const e = Math.min(bundled[n]?.s ?? Infinity, local[n]?.s ?? Infinity);
+  const e = Math.min(bundled[n]?.s ?? Infinity, local[n]?.s ?? Infinity, kaggle[n]?.s ?? Infinity);
   return Math.min(construct(n).s, e);
 }
 function saveLocal(n, sol) {
@@ -186,14 +211,24 @@ function showStats(sol) {
   const gEl = $('st-gap');
   gEl.textContent = rec ? (gap < 1e-7 ? (gap < -1e-7 ? `${fmt(gap, 6)} (new!)` : 'matched') : `+${fmt(gap, 6)}`) : 'n/a';
   gEl.className = rec ? (gap < 1e-7 ? 'good' : 'warn') : '';
-  $('st-kind').textContent = sol.label;
+  const kindEl = $('st-kind');
+  kindEl.textContent = '';
+  if (sol.src) {
+    const a = document.createElement('a');
+    a.href = `https://www.kaggle.com/code/${sol.src}`; a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = `${sol.src} (Kaggle)`;
+    kindEl.append(a);
+  } else kindEl.textContent = sol.label;
 }
 
-function selectN(v) {
+async function selectN(v) {
   stopOpt();
   n = Math.min(N_MAX, Math.max(1, Math.round(v) || 1));
   $('n-input').value = n; $('n-range').value = n;
   history.replaceState(null, '', `?n=${n}`);
+  const want = n;
+  await loadKaggle(n).catch(() => {});
+  if (n !== want) return;
   const sol = solution(n);
   setContainer(sol.s);
   drawSquares(sol.squares, n);
@@ -283,6 +318,9 @@ function download(name, text) {
 $('btn-csv-n').onclick = () => download(`squares_n${n}.csv`, [CSV_HEADER, ...csvRows(n, solution(n).squares)].join('\n') + '\n');
 $('btn-csv-all').onclick = async () => {
   const btn = $('btn-csv-all'); btn.disabled = true;
+  btn.textContent = 'Fetching packings…';
+  const todo = Object.keys(kaggle).map(Number);
+  await Promise.all(Array.from({ length: 12 }, async () => { while (todo.length) await loadKaggle(todo.pop()); }));
   const lines = [CSV_HEADER];
   let id = 0;
   for (let k = 1; k <= N_MAX; k++) {

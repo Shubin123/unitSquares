@@ -7,12 +7,39 @@ An interactive three.js viewer and GPU solver for the Kaggle
 pack *n* non-overlapping unit squares (any rotation) into the smallest square, for
 *n* = 1…1000.
 
-The site renders the current best packing for every *n*. It can also run a
+The site renders the best verified packing for every *n*. Most of these come
+from the public Kaggle notebooks (merged total **22.372005**, the same as the top
+public notebook); the rest come from the constructions and GPU search below. It can also run a
 WebGPU search in your browser that tries to beat it. Every packing is
 re-verified in double precision before it is shown or exported. You can download
 a single puzzle or a full `id,n,square_id,x,y,angle` submission CSV.
 
-## How the solutions are built
+## Solutions from the Kaggle notebooks
+
+`tools/import-kaggle.mjs` takes the `submission.csv` outputs of the competition's
+public notebooks. These are downloadable from
+`https://www.kaggle.com/api/v1/kernels/output/download/<user>/<slug>/submission.csv`
+without logging in. The script re-verifies every puzzle with the strict f64 SAT
+check, keeps the smallest side for each *n*, and records which notebook
+supplied it. That notebook is linked under "Method" in the viewer. 475 puzzles
+beat the constructions; the other 525 already match them.
+
+The techniques those notebooks use:
+
+| notebook | idea |
+|---|---|
+| [cdeotte · Multi-Gadget Fault DP](https://www.kaggle.com/code/cdeotte/squares-in-squares-multi-gadget-fault-dp-22-48) | Above n = 324 the literature runs out, and wrapping L-frames around one small gadget wastes the rest of the box. This notebook places *several* tilted gadgets (e.g. three 5×5 diamonds, each worth +1 square) along an anti-diagonal staircase "fault line", chosen by a 4-D Pareto DP over about 50k corner-typed gadgets. It then polishes them with a smooth SAT penalty and coupled SLP on GPUs. |
+| [kirilltym · Band LP / Seam LP](https://www.kaggle.com/code/kirilltym/22-3720-cpu-cuda-mps-eda-band-lp) | Merges the frontier of public packings, then picks angle bands before snapping. A linear program over contact constraints re-tightens the seams between slightly rotated rows. Packings are certified with the exact official metric. |
+| [malyshevdanil · Neighbour Transfer + Squeeze](https://www.kaggle.com/code/malyshevdanil/squares-in-squares-neighbour-transfer-squeeze) | Builds n from the packing for n ± 1 by adding or deleting a square, then squeezes the container. |
+| [alexchilton · Fault-line DP + Basin Hopping](https://www.kaggle.com/code/alexchilton/fault-line-dp-basin-hopping-lb-22-3747) | Fault-line composition with basin-hopping refinement. |
+| [lightningv08 · CUDA Packing Search](https://www.kaggle.com/code/lightningv08/squares-in-squares-cuda-packing-search), [kozykappa · Subset transfer](https://www.kaggle.com/code/kozykappa/subset-transfer-contact-refinement-and-compaction), [avazaku · Unjam the Grid](https://www.kaggle.com/code/avazaku/squarecraft-ii-unjam-the-grid-22-408597-lb) | GPU penalty search, subset transfer plus contact refinement, and grid unjamming. Their best packings were matched or beaten by the notebooks above. |
+
+Credit goes to the first notebook, in the order given to the import script,
+that was strictly best for that *n*. Ensemble notebooks pass along packings
+first found by others, so a listed source is where this site got the packing,
+not necessarily who discovered it.
+
+## How the site's own solutions are built
 
 ### 1. Exact constructions (all n, no search)
 
@@ -83,8 +110,10 @@ src/optimizer.js          replica controller (tempering, shrinking, restarts)
 src/main.js               three.js scene, UI, chart, export
 data/records.json         best-known s(n) from David Ellsworth's table (n ≤ 323)
 data/improved.json        bundled GPU-search improvements
+data/kaggle/              verified best packings from Kaggle notebooks (index.json + <n>.bin, f64)
 tools/make-submission.mjs build + validate submission.csv offline
 tools/precompute.cjs      headless-Chrome WebGPU batch search
+tools/import-kaggle.mjs   merge + verify Kaggle notebook outputs
 tools/parse_records.py    regenerate records.json
 ```
 
@@ -95,12 +124,10 @@ node tools/make-submission.mjs     # writes submission.csv (500,500 rows)
 
 ## Notes and caveats
 
-* I could not read the competition's Evaluation tab or its public notebooks,
-  because Kaggle requires a login. The CSV layout (`id,n,square_id,x,y,angle`,
-  with centres and angles in radians) and the per-puzzle quantity s/√n − 1 come
-  from the public overview text, so check them against the official page before
-  you submit. Packings are exported with a 1e-9 relative safety gap, so they are
-  valid even under a strict no-touching rule.
+* The metric is from the competition's Evaluation section: score(n) = L/√n − 1,
+  summed over puzzles. `id` is a unique integer row id, and touching squares are
+  allowed (only interior overlap is forbidden). Exported packings still keep a
+  1e-10 clearance so floating-point round trips can't create overlaps.
 * The best-known values come from
   [David Ellsworth's Squares in Squares page](https://kingbird.myphotos.cc/packing/squares_in_squares.html),
   which continues Erich Friedman's survey. Those values are used only for the

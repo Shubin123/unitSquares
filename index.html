@@ -20,7 +20,7 @@
   <header>
     <div>
       <h1>Squares in Squares</h1>
-      <p class="sub">Pack <i>n</i> unit squares into the smallest square, for <i>n</i> = 1…1000. Exact Göbel constructions, refined by a WebGPU search running on your GPU.</p>
+      <p class="sub">Pack <i>n</i> unit squares into the smallest square, for <i>n</i> = 1…1000. Shows the best verified packings from the public Kaggle notebooks, exact Göbel constructions, and a WebGPU search that runs on your GPU.</p>
     </div>
     <nav>
       <a href="https://www.kaggle.com/competitions/squares-in-squares" target="_blank" rel="noopener">Kaggle competition</a>
@@ -98,13 +98,14 @@
   <section class="chart-wrap">
     <div class="chart-head">
       <span>Per-puzzle waste s / √n − 1 across n (click to jump)</span>
-      <span class="legend"><i class="sw cur"></i>this site <i class="sw rec"></i>best known <i class="sw grid"></i>trivial grid</span>
+      <span class="legend"><i class="sw cur"></i>best here <i class="sw rec"></i>best known <i class="sw grid"></i>trivial grid</span>
     </div>
     <canvas id="chart" height="160"></canvas>
     <div id="tip" class="tip" hidden></div>
   </section>
 
   <footer>
+    Packings credited to Kaggle notebooks come from those notebooks' public <code>submission.csv</code> outputs (Apache 2.0) and are re-verified here; the per-puzzle source is linked under “Method”.
     Constructions after Frits Göbel (1979) as catalogued by Erich Friedman and David Ellsworth. Every packing is re-verified in double precision with the separating-axis test before it is shown or exported.
   </footer>
 

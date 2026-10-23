@@ -8,6 +8,14 @@ import { construct, finalize, validate, CSV_HEADER, csvRows } from '../src/geome
 
 const out = process.argv[2] || 'submission.csv';
 const improved = JSON.parse(fs.readFileSync(new URL('../data/improved.json', import.meta.url), 'utf8'));
+const kaggle = JSON.parse(fs.readFileSync(new URL('../data/kaggle/index.json', import.meta.url), 'utf8'));
+for (const k of Object.keys(kaggle)) {
+  const b = fs.readFileSync(new URL(`../data/kaggle/${k}.bin`, import.meta.url));
+  const a = new Float64Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.length));
+  const q = [];
+  for (let i = 0; i < +k; i++) q.push([a[3 * i], a[3 * i + 1], a[3 * i + 2]]);
+  if (!improved[k] || kaggle[k].s < improved[k].s) improved[k] = { s: kaggle[k].s, q };
+}
 const lines = [CSV_HEADER];
 let id = 0, total = 0, fromSearch = 0;
 
@@ -29,4 +37,4 @@ for (let n = 1; n <= 1000; n++) {
 }
 
 fs.writeFileSync(out, lines.join('\n') + '\n');
-console.log(`wrote ${out}: ${id} rows, ${fromSearch} puzzles from GPU search, Σ(s/√n − 1) = ${total.toFixed(6)}`);
+console.log(`wrote ${out}: ${id} rows, ${fromSearch} puzzles from Kaggle notebooks / GPU search, Σ(s/√n − 1) = ${total.toFixed(6)}`);
