@@ -1,0 +1,13 @@
+{
+  "name": "unit-squares",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "python3 -m http.server 8765",
+    "submission": "node tools/make-submission.mjs",
+    "precompute": "node tools/precompute.cjs 20 200"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.1"
+  }
+}

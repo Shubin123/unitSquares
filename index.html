@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Squares in Squares</title>
+  <meta name="description" content="Packing n unit squares into the smallest square: Göbel constructions plus a WebGPU parallel-tempering optimizer, rendered with three.js.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='.5' y='.5' width='15' height='15' rx='1' fill='none' stroke='%232f6fdb'/%3E%3Crect x='2' y='2' width='5' height='5' fill='%232f6fdb'/%3E%3Crect x='2' y='9' width='5' height='5' fill='%232f6fdb'/%3E%3Crect x='8' y='5' width='5' height='5' transform='rotate(45 10.5 7.5)' fill='%23e0832f'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    } }
+  </script>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Squares in Squares</h1>
+      <p class="sub">Pack <i>n</i> unit squares into the smallest square, for <i>n</i> = 1…1000. Exact Göbel constructions, refined by a WebGPU search running on your GPU.</p>
+    </div>
+    <nav>
+      <a href="https://www.kaggle.com/competitions/squares-in-squares" target="_blank" rel="noopener">Kaggle competition</a>
+      <a href="https://kingbird.myphotos.cc/packing/squares_in_squares.html" target="_blank" rel="noopener">Best-known table</a>
+      <a href="https://github.com/Shubin123/unitSquares" target="_blank" rel="noopener">Source</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="viewer">
+      <div id="scene"></div>
+      <div class="hud">
+        <div class="hud-n">n = <span id="hud-n">—</span></div>
+        <div class="hud-s">s = <span id="hud-s">—</span></div>
+        <div class="hud-kind" id="hud-kind"></div>
+      </div>
+      <div class="view-btns">
+        <button id="btn-top" title="Top-down view">Top</button>
+        <button id="btn-tilt" title="Perspective view">3D</button>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="group">
+        <label for="n-input">Number of squares</label>
+        <div class="n-row">
+          <button id="n-prev" aria-label="Previous n">−</button>
+          <input id="n-input" type="number" min="1" max="1000" value="11">
+          <button id="n-next" aria-label="Next n">+</button>
+        </div>
+        <input id="n-range" type="range" min="1" max="1000" value="11" aria-label="n slider">
+      </div>
+
+      <dl class="stats">
+        <div><dt>Side s</dt><dd id="st-s">—</dd></div>
+        <div><dt>s / √n − 1</dt><dd id="st-score">—</dd></div>
+        <div><dt>Trivial ⌈√n⌉</dt><dd id="st-grid">—</dd></div>
+        <div><dt>Best known</dt><dd id="st-rec">—</dd></div>
+        <div><dt>Gap to record</dt><dd id="st-gap">—</dd></div>
+        <div><dt>Method</dt><dd id="st-kind">—</dd></div>
+      </dl>
+
+      <div class="group">
+        <div class="opt-head">
+          <span>Optimizer</span>
+          <span id="backend" class="badge">detecting…</span>
+        </div>
+        <div class="row">
+          <button id="btn-opt" class="primary">Optimize</button>
+          <select id="sel-reps" aria-label="Replicas">
+            <option value="auto">auto replicas</option>
+            <option value="16">16</option><option value="64">64</option><option value="256">256</option><option value="1024">1024</option>
+          </select>
+        </div>
+        <label class="check"><input type="checkbox" id="chk-live" checked> Show live replica</label>
+        <dl class="stats small">
+          <div><dt>Throughput</dt><dd id="op-rate">—</dd></div>
+          <div><dt>Replicas</dt><dd id="op-reps">—</dd></div>
+          <div><dt>Batches</dt><dd id="op-batches">—</dd></div>
+          <div><dt>Improvements</dt><dd id="op-imp">—</dd></div>
+        </dl>
+      </div>
+
+      <div class="group">
+        <div class="row">
+          <button id="btn-csv-n">CSV for this n</button>
+          <button id="btn-csv-all">Full submission</button>
+        </div>
+        <p class="note" id="total"></p>
+        <button id="btn-reset" class="link">Clear locally found improvements</button>
+      </div>
+    </aside>
+  </main>
+
+  <section class="chart-wrap">
+    <div class="chart-head">
+      <span>Per-puzzle waste s / √n − 1 across n (click to jump)</span>
+      <span class="legend"><i class="sw cur"></i>this site <i class="sw rec"></i>best known <i class="sw grid"></i>trivial grid</span>
+    </div>
+    <canvas id="chart" height="160"></canvas>
+    <div id="tip" class="tip" hidden></div>
+  </section>
+
+  <footer>
+    Constructions after Frits Göbel (1979) as catalogued by Erich Friedman and David Ellsworth. Every packing is re-verified in double precision with the separating-axis test before it is shown or exported.
+  </footer>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
